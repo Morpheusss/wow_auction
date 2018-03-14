@@ -8,18 +8,10 @@ import Network.HTTP.Client.TLS
 import System.Environment
 import qualified Data.Vector as V
 
-apiKey :: IO String
-apiKey = getEnv "BLZ_API_KEY"
-
-metaDataUrl :: IO String
-metaDataUrl = do
-  key <- apiKey
-  return $ "https://us.api.battle.net/wow/auction/data/illidan?locale=en_US&apikey=" ++ key
-
 dataUrl :: IO (Maybe String)
 dataUrl = do
-  mdUrl <- metaDataUrl
-  res <- fetchJSON mdUrl
+  apiKey <- getEnv "BLZ_API_KEY"
+  res <- fetchJSON ("https://us.api.battle.net/wow/auction/data/illidan?locale=en_US&apikey=" ++ apiKey)
   return $ parseMaybe parseDataUrl res
 
 fetchJSON :: String -> IO Value
