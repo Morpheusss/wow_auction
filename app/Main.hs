@@ -5,17 +5,27 @@ import Data.Aeson
 import Data.Aeson.Types
 import Network.HTTP.Simple
 import Network.HTTP.Client.TLS
+import System.Environment
 import qualified Data.Vector as V
 
-metaDataUrlWith :: String -> String
-metaDataUrlWith apiKey = "https://us.api.battle.net/wow/auction/data/illidan?locale=en_US&apikey=" ++
-          apiKey
+apiKey :: IO String
+apiKey = getEnv "BLZ_API_KEY"
+
+metaDataUrl :: IO String
+metaDataUrl = do
+  key <- apiKey
+  return $ "https://us.api.battle.net/wow/auction/data/illidan?locale=en_US&apikey=" ++ key
+
+dataUrl :: IO (Maybe String)
+dataUrl = do
+  mdUrl <- metaDataUrl
+  res <- fetchJSON mdUrl
+  return $ parseMaybe parseDataUrl res
 
 fetchJSON :: String -> IO Value
 fetchJSON url = do
   req <- parseRequest $ "GET " ++ url
-  res <- httpJSON req
-  return $ getResponseBody res
+  fmap getResponseBody (httpJSON req)
 
 parseDataUrl :: Value -> Parser String
 parseDataUrl value = do
@@ -23,16 +33,10 @@ parseDataUrl value = do
   firstObj <- withArray "Get first file" (pure . (V.! 0)) files
   withObject "Lookup data URL" (.: "url") firstObj
 
-getDataUrl :: String -> IO (Maybe String)
-getDataUrl apiKey = do
-  res <- fetchJSON $ metaDataUrlWith $ apiKey
-  return $ parseMaybe parseDataUrl res
-
-
 main :: IO ()
 main = do
   manager <- newTlsManagerWith tlsManagerSettings
-  dataUrl <- getDataUrl "{use your own :)}"
+  dataUrl <- dataUrl
   putStrLn $ case dataUrl of
     Nothing -> "Parsing failed!"
     Just url -> "URL is: " ++ url
